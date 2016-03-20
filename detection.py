@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plot
 from os import listdir
 from os.path import isfile, join
+import copy
 
 MIN_MATCH_COUNT = 10
 
@@ -11,8 +12,57 @@ MIN_MATCH_COUNT = 10
 def main():
     tr1, test1, tr2, test2 = read_folders()
     img1 = tr1[0]
-    img2 = test1[0]
-    grey1, grey2 = load__greyScale(img1, img2)
+    print('using training image: ' + img1)
+    img2 = test1[2]
+    print('using test image: ' + img2)
+    tr_img, test_img, tr_grey, test_grey = load__greyScale(img1, img2)
+
+    sift = Sift()
+    kpAS, descAS, kpBS, descBS = sift.key_desc(tr_grey, test_grey)
+    akaze = AKaze()
+    kpAK, descAK, kpBK, descBK = akaze.key_desc(tr_grey, test_grey)
+
+    good_matches_sift = bf_matching(descAS, descBS)
+    good_matches_akaze = bf_matching(descAK, descBK)
+
+
+    maskS, dtsS = location_extraction(kpAS, kpBS, good_matches_sift,tr_img)
+    maskK, dtsK = location_extraction(kpAK, kpBK, good_matches_akaze,tr_img)
+
+    if dtsS !=None and dtsK != None:
+
+        #Copy of image so that lines from first method do not last to second.
+        tmp_img = copy.copy(test_img)
+        res_sift_img = create_results(tr_img, test_img, kpAS, kpBS, dtsS,
+                                            maskS, good_matches_sift)
+        res_akaze_img = create_results(tr_img, tmp_img, kpAK, kpBK, dtsK,
+                                            maskK, good_matches_akaze)
+
+        plot.subplot(211), plot.imshow(res_sift_img), plot.title('Sift')
+        plot.subplot(212), plot.imshow(res_akaze_img), plot.title('AKaze')
+
+        plot.show()
+
+    elif dtsS == None:
+        print('Sift misslyckades')
+
+        res_akaze_img = create_results(tr_img, tmp_img, kpAK, kpBK, dtsK,
+                                            maskK, good_matches_akaze)
+
+
+        plot.imshow(res_akaze_img), plot.show()
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    elif dtsK == None:
+        print('akaze misslyckades')
+        res_sift_img = create_results(tr_img, test_img, kpAS, kpBS, dtsS,
+                                            maskS, good_matches_sift)
+
+        plot.imshow(res_sift_img), plot.show()
+
+
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 #Read a folder containing images and return a list of urls
@@ -49,7 +99,7 @@ def load__greyScale(train, test):
     greyA = cv2.cvtColor(imgA, cv2.COLOR_BGR2GRAY)
     greyB = cv2.cvtColor(imgB, cv2.COLOR_BGR2GRAY)
 
-    return greyA, greyB
+    return imgA, imgB, greyA, greyB
 
 #A class that calls for openCV function Sift
 class Sift:
@@ -61,8 +111,8 @@ class Sift:
     #descriptor for each one
     def key_desc(self, grey1, grey2):
         word = None
-        kpA, descA = sift.detectAndCompute(grey1, word)
-        kpB, descB = sift.detectAndCompute(grey2, word)
+        kpA, descA = self.sift.detectAndCompute(grey1, word)
+        kpB, descB = self.sift.detectAndCompute(grey2, word)
 
         return kpA, descA, kpB, descB
 
@@ -76,47 +126,51 @@ class AKaze:
     #descriptor for each one
     def key_desc(self, grey1, grey2):
         word = None
-        kpA, descA = akaze.detectAndCompute(grey1, word)
-        kpB, descB = akaze.detectAndCompute(grey2, word)
+        kpA, descA = self.akaze.detectAndCompute(grey1, word)
+        kpB, descB = self.akaze.detectAndCompute(grey2, word)
 
         return kpA, descA, kpB, descB
 
 #Uses brute force matching
-def bf_matching(descA, decB):
+def bf_matching(descA, descB):
     bfm = cv2.BFMatcher()
     matches = bfm.knnMatch(descA, descB, k = 2)
 
     #Ratio test
-    good = []
+    good_matches = []
     for m,n in matches:
         if m.distance < 0.75*n.distance:
-            good.append(m)
+            good_matches.append(m)
 
-    return good
+    return good_matches
 
-def location_extraction(keyA, keyB, good, tr_Img, test_Img):
-    if len(good) > MIN_MATCH_COUNT:
-        src_pts = np.float32([kpA[m.queryIdx].pt for m in good]).reshape(-1,1,2)
-        dst_pts = np.float32([kpB[m.trainIdx].pt for m in good]).reshape(-1,1,2)
+def location_extraction(kpA, kpB, good_matches, tr_img):
+    if len(good_matches) > MIN_MATCH_COUNT:
+        src_pts = np.float32([kpA[m.queryIdx].pt for m in good_matches]).reshape(-1,1,2)
+        dst_pts = np.float32([kpB[m.trainIdx].pt for m in good_matches]).reshape(-1,1,2)
 
         M,mask = cv2.findHomography(src_pts,dst_pts, cv2.RANSAC, 5.0)
         matchesMask = mask.ravel().tolist()
 
-        h,w,d = skridsko.shape
+        h,w,d = tr_img.shape
         pts = np.float32( [ [0,0], [0,h-1], [w-1,h-1],[w-1,0] ] ).reshape(-1,1,2)
         dst = cv2.perspectiveTransform(pts,M)
+        return matchesMask, dst
 
     else:
         print("Not enough matches")
         matchesMask = None
+        return matchesMask, None
 
-    return matchesMask, pts, dst    
-def draw_results():
-    kub = cv2.polylines(kub,[np.int32(dst)],True, 255,3,cv2.LINE_AA)
+#
+def create_results(tr_img, tmp_img, kpA, kpB, dst, matchesMask, good_matches):
+    tmp_img = cv2.polylines(tmp_img,[np.int32(dst)],True, 255,3,cv2.LINE_AA)
     draw_params = dict(matchColor = (0,255,0), # draw matches in green color
                             singlePointColor = None,
                             matchesMask = matchesMask, # draw only inliers
                             flags = 2)
-    img3 = cv2.drawMatches(skridsko,kpS,kub,kpK,good,None,**draw_params)
+    res_img = cv2.drawMatches(tr_img,kpA,tmp_img,kpB,good_matches,None,**draw_params)
+
+    return res_img
 
 main()
