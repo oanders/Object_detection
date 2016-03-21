@@ -5,8 +5,8 @@ from matplotlib import pyplot as plot
 MIN_MATCH_COUNT = 10
 
 #Load image and create grayscale
-skridsko = cv2.imread('Images/skridsko/training/skridsko.jpg')
-kub = cv2.imread('Images/skridsko/test/skridsko4.jpg')
+skridsko = cv2.imread('Images/skridsko/training/s3.jpg')
+kub = cv2.imread('Images/skridsko/test/s5.jpg')
 graySko = cv2.cvtColor(skridsko,cv2.COLOR_BGR2GRAY)
 grayKub = cv2.cvtColor(kub, cv2.COLOR_BGR2GRAY)
 

@@ -4,16 +4,34 @@ from matplotlib import pyplot as plot
 from os import listdir
 from os.path import isfile, join
 import copy
+from class_sift import Sift
+from class_akaze import AKaze
 
 MIN_MATCH_COUNT = 10
-
+FOLDER1 = 'Images/skridsko/'
+FOLDER2 = 'Images/panter/'
 
 
 def main():
-    tr1, test1, tr2, test2 = read_folders()
-    img1 = tr1[0]
+    #Ask wich object we are running tests on
+    choice = raw_input('choose folder skidsko (s) or panter (p): ')
+
+    if choice == 's':
+        folder = FOLDER1
+    else:
+        folder = FOLDER2
+    tr_names, test_names = read_folders(folder)
+
+    print('Available training images: \n')
+    print(tr_names)
+    tr = raw_input('\n choose training picture: ')
+    print('\n Available test images: \n')
+    print(test_names)
+    test = raw_input('\n choose test picture: ')
+
+    img1 =  folder + 'training/' + tr
     print('using training image: ' + img1)
-    img2 = test1[2]
+    img2 = folder + 'test/' + test
     print('using test image: ' + img2)
     tr_img, test_img, tr_grey, test_grey = load__greyScale(img1, img2)
 
@@ -38,12 +56,13 @@ def main():
         res_akaze_img = create_results(tr_img, tmp_img, kpAK, kpBK, dtsK,
                                             maskK, good_matches_akaze)
 
+        print("jek!!!")
         plot.subplot(211), plot.imshow(res_sift_img), plot.title('Sift')
         plot.subplot(212), plot.imshow(res_akaze_img), plot.title('AKaze')
 
         plot.show()
 
-    elif dtsS == None:
+    elif dtsK != None:
         print('Sift misslyckades')
 
         res_akaze_img = create_results(tr_img, tmp_img, kpAK, kpBK, dtsK,
@@ -53,43 +72,32 @@ def main():
         plot.imshow(res_akaze_img), plot.show()
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    elif dtsK == None:
+    elif dtsS != None:
         print('akaze misslyckades')
         res_sift_img = create_results(tr_img, test_img, kpAS, kpBS, dtsS,
                                             maskS, good_matches_sift)
 
         plot.imshow(res_sift_img), plot.show()
-
+    else:
+        print('Both methods could not find a match')
 
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
 
 #Read a folder containing images and return a list of urls
-def read_folders():
-    #------------------SKIDSKO--------------------------
-    #Path for the training images of skidsko
-    mps = 'Images/skridsko/training'
+def read_folders(folder):
+
+    tr_path = folder + 'training'
     #List of named of all training images
-    tr_s = [mps + '/' + f for f in listdir(mps) if isfile(join(mps, f))]
+    tr_names = [f for f in listdir(tr_path) if isfile(join(tr_path, f))]
 
-    #PAth for test images of skrisko
-    tps = 'Images/skridsko/test'
     #List of all test images
-    test_s = [tps + '/' + f for f in listdir(tps) if isfile(join(tps, f))]
+    test_path = folder + 'test'
+    test_names = [f for f in listdir(test_path) if isfile(join(test_path, f))]
 
-    #---------PANTER------------------
-    #Path for the training images of skidsko
-    mpp = 'Images/panter/training'
-    #List of named of all training images
-    tr_p = [mpp + '/' + f for f in listdir(mpp) if isfile(join(mpp, f))]
+    return tr_names, test_names
 
-    #PAth for test images of skrisko
-    tpp = 'Images/panter/test'
-    #List of all test images
-    test_p = [tpp + '/'+ f for f in listdir(tpp) if isfile(join(tpp, f))]
-
-    return tr_s, test_s, tr_p, test_p
 
 #Read an image and return its grey picture
 def load__greyScale(train, test):
@@ -101,35 +109,7 @@ def load__greyScale(train, test):
 
     return imgA, imgB, greyA, greyB
 
-#A class that calls for openCV function Sift
-class Sift:
-    #Contructor for class, objects of class SIFT
-    def __init__(self):
-        self.sift = cv2.xfeatures2d.SIFT_create()
 
-    #Function that detects keypoints in image and creates a
-    #descriptor for each one
-    def key_desc(self, grey1, grey2):
-        word = None
-        kpA, descA = self.sift.detectAndCompute(grey1, word)
-        kpB, descB = self.sift.detectAndCompute(grey2, word)
-
-        return kpA, descA, kpB, descB
-
-#Class that calls for openCV function akaze
-class AKaze:
-    #Constructor for objects of class AKaze
-    def __init__(self):
-        self.akaze = cv2.AKAZE_create()
-
-    #Function that detects keypoints in image and creates a
-    #descriptor for each one
-    def key_desc(self, grey1, grey2):
-        word = None
-        kpA, descA = self.akaze.detectAndCompute(grey1, word)
-        kpB, descB = self.akaze.detectAndCompute(grey2, word)
-
-        return kpA, descA, kpB, descB
 
 #Uses brute force matching
 def bf_matching(descA, descB):
