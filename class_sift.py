@@ -8,9 +8,22 @@ class Sift:
 
     #Function that detects keypoints in image and creates a
     #descriptor for each one
-    def key_desc(self, grey1, grey2):
+    def match(self, grey1, grey2):
         word = None
         kpA, descA = self.sift.detectAndCompute(grey1, word)
         kpB, descB = self.sift.detectAndCompute(grey2, word)
 
-        return kpA, descA, kpB, descB
+        return self.bf_matching(kpA, descA, kpB, descB)
+
+    #Uses brute force matching
+    def bf_matching(self, kpA, descA, kpB, descB):
+        bfm = cv2.BFMatcher()
+        matches = bfm.knnMatch(descA, descB, k = 2)
+
+        #Ratio test
+        good_matches = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good_matches.append(m)
+
+        return kpA, descA, kpB, descB, good_matches

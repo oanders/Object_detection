@@ -29,20 +29,16 @@ def main():
     print(test_names)
     test = raw_input('\n choose test picture: ')
 
-    img1 =  folder + 'training/' + tr
+    img1 =  folder + 'training/' + tr +'.jpg'
     print('using training image: ' + img1)
-    img2 = folder + 'test/' + test
+    img2 = folder + 'test/' + test +'.jpg'
     print('using test image: ' + img2)
     tr_img, test_img, tr_grey, test_grey = load__greyScale(img1, img2)
 
     sift = Sift()
-    kpAS, descAS, kpBS, descBS = sift.key_desc(tr_grey, test_grey)
+    kpAS, descAS, kpBS, descBS, good_matches_sift = sift.match(tr_grey, test_grey)
     akaze = AKaze()
-    kpAK, descAK, kpBK, descBK = akaze.key_desc(tr_grey, test_grey)
-
-    good_matches_sift = bf_matching(descAS, descBS)
-    good_matches_akaze = bf_matching(descAK, descBK)
-
+    kpAK, descAK, kpBK, descBK, good_matches_akaze = akaze.match(tr_grey, test_grey)
 
     maskS, dtsS = location_extraction(kpAS, kpBS, good_matches_sift,tr_img)
     maskK, dtsK = location_extraction(kpAK, kpBK, good_matches_akaze,tr_img)
@@ -60,7 +56,11 @@ def main():
         plot.subplot(211), plot.imshow(res_sift_img), plot.title('Sift')
         plot.subplot(212), plot.imshow(res_akaze_img), plot.title('AKaze')
 
+        fig_name = 'results/' +tr + '_vs_' + test +'.png'
+        plot.savefig(fig_name)
         plot.show()
+
+
 
     elif dtsK != None:
         print('Sift misslyckades')
@@ -111,18 +111,7 @@ def load__greyScale(train, test):
 
 
 
-#Uses brute force matching
-def bf_matching(descA, descB):
-    bfm = cv2.BFMatcher()
-    matches = bfm.knnMatch(descA, descB, k = 2)
 
-    #Ratio test
-    good_matches = []
-    for m,n in matches:
-        if m.distance < 0.75*n.distance:
-            good_matches.append(m)
-
-    return good_matches
 
 def location_extraction(kpA, kpB, good_matches, tr_img):
     if len(good_matches) > MIN_MATCH_COUNT:
@@ -145,8 +134,7 @@ def location_extraction(kpA, kpB, good_matches, tr_img):
 #
 def create_results(tr_img, tmp_img, kpA, kpB, dst, matchesMask, good_matches):
     tmp_img = cv2.polylines(tmp_img,[np.int32(dst)],True, 255,3,cv2.LINE_AA)
-    draw_params = dict(matchColor = (0,255,0), # draw matches in green color
-                            singlePointColor = None,
+    draw_params = dict(singlePointColor = None,
                             matchesMask = matchesMask, # draw only inliers
                             flags = 2)
     res_img = cv2.drawMatches(tr_img,kpA,tmp_img,kpB,good_matches,None,**draw_params)
