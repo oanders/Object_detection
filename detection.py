@@ -1,114 +1,127 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plot
-from os import listdir
-from os.path import isfile, join
+import os
+#from os import listdir, makedirs
+#from os.path import isfile, join, isdir
 import copy
 from class_sift import Sift
 from class_akaze import AKaze
 from class_orb import ORB
 
+
 MIN_MATCH_COUNT = 10
 FOLDER1 = 'Images/skridsko/'
 FOLDER2 = 'Images/panter/'
-
+FOLDER3 = 'Images/flaska/'
+FOLDER4 = 'Images/kontroll/'
 
 def main():
     #Ask wich object we are running tests on
-    choice = raw_input('choose folder skidsko (s) or panter (p): ')
+    choice = raw_input('choose folder skidsko , panter, flaska, kontroll: ')
 
-    if choice == 's':
+    if choice == 'skridsko':
         folder = FOLDER1
-    else:
+    elif choice == 'panter':
         folder = FOLDER2
-    tr_names, test_names = read_folders(folder)
+    elif choice == 'flaska':
+        folder = FOLDER3
+    elif choice == 'kontroll':
+        folder = FOLDER4
+    else:
+        print('Invalid choice')
+        return main()
+    names = read_folders(folder)
 
-    print('Available training images: \n')
-    print(tr_names)
-    tr = raw_input('\n choose training picture: ')
-    print('\n Available test images: \n')
-    print(test_names)
-    test = raw_input('\n choose test picture: ')
+    print('Available test: \n')
+    print(names)
+    choice2 = raw_input('\n choose test: ')
 
-    img1 =  folder + 'training/' + tr +'.jpg'
+    img1 =  folder + choice2 + '/' + 'tr.jpg'
     print('using training image: ' + img1)
-    img2 = folder + 'test/' + test +'.jpg'
-    print('using test image: ' + img2)
-    tr_img, test_img, tr_grey, test_grey = load__greyScale(img1, img2)
+    tr_img, tr_grey = load__greyScale(img1)
+    #Loop through test images
+    nr = read_nr_images(folder + choice2)
+    i = 1
+    while i < nr:
+        img2 = folder + choice2 + '/' + 't' + str(i) + '.jpg'
+        print('using test image: ' + img2)
+        test_img, test_grey = load__greyScale(img2)
 
-    #Call Sift class
-    sift = Sift()
-    kpAS, descAS, kpBS, descBS, good_matches_sift = sift.match(tr_grey, test_grey)
-    #Call Akaze class
-    akaze = AKaze()
-    kpAK, descAK, kpBK, descBK, good_matches_akaze = akaze.match(tr_grey, test_grey)
-    #Call ORB class
-    orb = ORB()
-    kpAorb, descAorb, kpBorb, descBorb, good_matches_orb = orb.match(tr_grey, test_grey)
+        #Call Sift class
+        sift = Sift()
+        kpAS, descAS, kpBS, descBS, good_matches_sift = sift.match(tr_grey, test_grey)
+        #Call Akaze class
+        akaze = AKaze()
+        kpAK, descAK, kpBK, descBK, good_matches_akaze = akaze.match(tr_grey, test_grey)
+        #Call ORB class
+        orb = ORB()
+        kpAorb, descAorb, kpBorb, descBorb, good_matches_orb = orb.match(tr_grey, test_grey)
 
-    #Mask for all three algorithm
-    maskS, dtsS = location_extraction(kpAS, kpBS, good_matches_sift,tr_img)
-    maskK, dtsK = location_extraction(kpAK, kpBK, good_matches_akaze,tr_img)
-    maskorb, dtsorb = location_extraction(kpAorb, kpBorb, good_matches_orb,tr_img)
+        #Mask for all three algorithm
+        maskS, dtsS = location_extraction(kpAS, kpBS, good_matches_sift,tr_img)
+        maskK, dtsK = location_extraction(kpAK, kpBK, good_matches_akaze,tr_img)
+        maskorb, dtsorb = location_extraction(kpAorb, kpBorb, good_matches_orb,tr_img)
 
 
 
-    #Copy of image so that lines from first method do not last to second.
-    tmp_img = copy.copy(test_img)
-    res_sift_img = create_results(tr_img, test_img, kpAS, kpBS, dtsS,
-                                        maskS, good_matches_sift)
-    res_akaze_img = create_results(tr_img, tmp_img, kpAK, kpBK, dtsK,
-                                        maskK, good_matches_akaze)
+        #Copy of image so that lines from first method do not last to second.
+        tmp_img1 = copy.copy(test_img)
+        tmp_img2 = copy.copy(test_img)
+        res_sift_img = create_results(tr_img, test_img, kpAS, kpBS, dtsS,
+                                            maskS, good_matches_sift)
+        res_akaze_img = create_results(tr_img, tmp_img1, kpAK, kpBK, dtsK,
+                                            maskK, good_matches_akaze)
 
-    res_orb_img = create_results(tr_img, tmp_img, kpAorb, kpBorb, dtsorb,
-                                        maskorb, good_matches_orb)
-    #Draw picture with matches data
-    h, w, d = res_orb_img.shape
-    table_img = np.zeros((h,w,d), np.uint8)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    nr_matches_sift = 'Number of Sift matches: ' + str(len(good_matches_sift))
-    cv2.putText(table_img, nr_matches_sift, (100, 100), font, 1, (255,255,255), 2, cv2.LINE_AA)
+        res_orb_img = create_results(tr_img, tmp_img2, kpAorb, kpBorb, dtsorb,
+                                            maskorb, good_matches_orb)
+        #Draw picture with matches data
+        h, w, d = res_orb_img.shape
+        table_img = np.zeros((h,w,d), np.uint8)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        nr_matches_sift = 'Number of Sift matches: ' + str(len(good_matches_sift))
+        cv2.putText(table_img, nr_matches_sift, (100, 100), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
-    nr_matches_akaze = 'Number of AKaze matches: ' + str(len(good_matches_akaze))
-    cv2.putText(table_img, nr_matches_akaze, (100, 200), font, 1, (255,255,255), 2, cv2.LINE_AA)
+        nr_matches_akaze = 'Number of AKaze matches: ' + str(len(good_matches_akaze))
+        cv2.putText(table_img, nr_matches_akaze, (100, 200), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
-    nr_matches_orb = 'Number of Orb matches: ' + str(len(good_matches_orb))
-    cv2.putText(table_img, nr_matches_orb, (100, 300), font, 1, (255,255,255), 2, cv2.LINE_AA)
+        nr_matches_orb = 'Number of Orb matches: ' + str(len(good_matches_orb))
+        cv2.putText(table_img, nr_matches_orb, (100, 300), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
-    plot.subplot(221), plot.imshow(res_sift_img), plot.title('Sift')
-    plot.subplot(222), plot.imshow(res_akaze_img), plot.title('AKaze')
-    plot.subplot(223), plot.imshow(res_orb_img), plot.title('ORB')
-    plot.subplot(224), plot.imshow(table_img), plot.title('Table')
+        plot.subplot(221), plot.imshow(res_sift_img), plot.title('Sift')
+        plot.subplot(222), plot.imshow(res_akaze_img), plot.title('AKaze')
+        plot.subplot(223), plot.imshow(res_orb_img), plot.title('ORB')
+        plot.subplot(224), plot.imshow(table_img), plot.title('Table')
 
-    fig_name = 'results/' +tr + '_vs_' + test +'.png'
-    plot.savefig(fig_name)
-    plot.show()
+        directory = 'results/' + choice + '/' + choice2
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
+        number = i
+        fig_name = directory + '/res' + str(number) + '.png'
+        plot.savefig(fig_name)
 
+        i = i+1
 
 
 #Read a folder containing images and return a list of urls
-def read_folders(folder):
+def read_folders(path):
 
-    tr_path = folder + 'training'
     #List of named of all training images
-    tr_names = [f for f in listdir(tr_path) if isfile(join(tr_path, f))]
+    names = [f for f in os.listdir(path)]
+    return names
 
-    #List of all test images
-    test_path = folder + 'test'
-    test_names = [f for f in listdir(test_path) if isfile(join(test_path, f))]
-
-    return tr_names, test_names
-
+def read_nr_images(path):
+    images = [im for im in os.listdir(path) if os.path.isfile(os.path.join(path, im))]
+    return len(images)
 
 #Read an image and return its grey picture
-def load__greyScale(train, test):
-    imgA = cv2.imread(train)
-    imgB = cv2.imread(test)
+def load__greyScale(picture):
+    img = cv2.imread(picture)
 
-    greyA = cv2.cvtColor(imgA, cv2.COLOR_BGR2GRAY)
-    greyB = cv2.cvtColor(imgB, cv2.COLOR_BGR2GRAY)
+    grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    return imgA, imgB, greyA, greyB
+
+    return img, grey
 
 
 
