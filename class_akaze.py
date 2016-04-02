@@ -10,13 +10,18 @@ class AKaze:
     #descriptor for each one
     def match(self, grey1, grey2):
         word = None
+
+        #start tracking time
+        e1 = cv2.getTickCount()
         kpA, descA = self.akaze.detectAndCompute(grey1, word)
         kpB, descB = self.akaze.detectAndCompute(grey2, word)
 
-        return self.bf_matching(kpA, descA, kpB, descB)
+        e2 = cv2.getTickCount()
+        time = (e2 - e1)/ cv2.getTickFrequency()
+        return self.bf_matching(kpA, descA, kpB, descB, time)
 
     #Uses brute force matching
-    def bf_matching(self, kpA, descA, kpB, descB):
+    def bf_matching(self, kpA, descA, kpB, descB, time):
         bfm = cv2.BFMatcher()
         matches = bfm.knnMatch(descA, descB, k = 2)
 
@@ -26,4 +31,4 @@ class AKaze:
             if m.distance < 0.75*n.distance:
                 good_matches.append(m)
 
-        return kpA, descA, kpB, descB, good_matches
+        return kpA, descA, kpB, descB, good_matches, time

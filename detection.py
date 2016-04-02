@@ -11,36 +11,33 @@ from class_orb import ORB
 
 
 MIN_MATCH_COUNT = 10
-FOLDER1 = 'Images/skridsko/'
-FOLDER2 = 'Images/panter/'
-FOLDER3 = 'Images/flaska/'
-FOLDER4 = 'Images/kontroll/'
 
 #Main method, it calls other functions and
 #tests different detection algortithms on images
 def main():
     #Ask wich object we are running tests on
     folder = choose_folder()
-    tests = read_folders(folder)
-    test = choose_test(tests)
+    test = choose_test(folder)
+
     #Path for a result directory to be created
-    directory = 'results/' + folder + '/' + test
+    directory = 'test_results/' + folder + '/' + test
     #Path for Training image
-    img1 =  folder + test + '/' + 'tr.jpg'
+    path = 'Images/' + folder + '/' + test
+    img1 =  path + '/' + 'tr.jpg'
     print('using training image: ' + img1)
     tr_img, tr_grey = load__greyScale(img1)
 
     #Loop through test images
-    nr = read_nr_images(folder + test)
+    nr = read_nr_images(path)
     i = 1
     while i < nr:
-        img2 = folder + test + '/' + 't' + str(i) + '.jpg'
+        img2 = path + '/' + 't' + str(i) + '.jpg'
         print('using test image: ' + img2)
         test_img, test_grey = load__greyScale(img2)
         #Run algorithms
-        res_sift_img, good_matches_sift, res_akaze_img, good_matches_akaze, res_orb_img, good_matches_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
+        res_sift_img, good_matches_sift, time_sift, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
         #Table containing the number of matches for each algorithm
-        table_img = create_table(res_orb_img, good_matches_sift, good_matches_akaze, good_matches_orb)
+        table_img = create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, time_akaze, good_matches_orb, time_orb)
         #Draw plots for the resulting images
         draw_plots(res_sift_img, res_akaze_img, res_orb_img, table_img, i, directory)
         #go to next image in the folder
@@ -48,35 +45,38 @@ def main():
 
 #Method that goes to a desired folder
 def choose_folder():
-    choice = raw_input('choose folder skidsko , panter, flaska, kontroll: ')
+    print('\nAvailable objects:\n')
+    folders = read_folders('Images')
 
-    if choice == 'skridsko':
-        folder = FOLDER1
-    elif choice == 'panter':
-        folder = FOLDER2
-    elif choice == 'flaska':
-        folder = FOLDER3
-    elif choice == 'kontroll':
-        folder = FOLDER4
-    else:
-        print('Invalid choice')
-        return main()
+    i = 1
+    while i <= len(folders):
+        print('(' + str(i) + '): ' + folders[i-1])
+        i = i+1
+    choice = int(raw_input('\nChoose a folder nr: '))
+    folder = folders[choice-1]
+
     return folder
+
+
 
 #Read a folder containing images and return a list of urls
 def read_folders(path):
-    print(path)
     #List of names of all training images
     names = [f for f in os.listdir(path)]
     return names
 
 #choses a folder with one test
-def choose_test(url):
-    print('Available test: \n')
-    print(url)
-    chosen_test = raw_input('\n choose test: ')
+def choose_test(folder):
+    print('\nAvailable tests:\n')
+    tests = read_folders('Images/' + folder)
+    i = 1
+    for test in tests:
+        print('(' + str(i) + '): ' + test)
+        i = i+1
+    chosen_test = int(raw_input('\nChoose test nr: '))
+    test = tests[chosen_test-1]
 
-    return chosen_test
+    return test
 
 
 #Returns the number of images of the given path/folder
@@ -86,8 +86,12 @@ def read_nr_images(path):
 
 #Read an image and return its grey picture
 def load__greyScale(image):
+    print('Loading: '  + image)
     img = cv2.imread(image)
+    h, w, d = img.shape
+
     grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
     return img, grey
 
 
@@ -96,13 +100,13 @@ def load__greyScale(image):
 def run_test_algorithms(tr_grey, test_grey, tr_img, test_img):
     #Call Sift class
     sift = Sift()
-    kpAS, descAS, kpBS, descBS, good_matches_sift = sift.match(tr_grey, test_grey)
+    kpAS, descAS, kpBS, descBS, good_matches_sift, time_sift = sift.match(tr_grey, test_grey)
     #Call Akaze class
     akaze = AKaze()
-    kpAK, descAK, kpBK, descBK, good_matches_akaze = akaze.match(tr_grey, test_grey)
+    kpAK, descAK, kpBK, descBK, good_matches_akaze, time_akaze = akaze.match(tr_grey, test_grey)
     #Call ORB class
     orb = ORB()
-    kpAorb, descAorb, kpBorb, descBorb, good_matches_orb = orb.match(tr_grey, test_grey)
+    kpAorb, descAorb, kpBorb, descBorb, good_matches_orb, time_orb = orb.match(tr_grey, test_grey)
 
     #Mask for all three algorithms
     maskS, dtsS = location_extraction(kpAS, kpBS, good_matches_sift,tr_img)
@@ -120,7 +124,7 @@ def run_test_algorithms(tr_grey, test_grey, tr_img, test_img):
     res_orb_img = create_results(tr_img, tmp_img2, kpAorb, kpBorb, dtsorb,
                                         maskorb, good_matches_orb)
 
-    return res_sift_img, good_matches_sift, res_akaze_img, good_matches_akaze, res_orb_img, good_matches_orb
+    return res_sift_img, good_matches_sift, time_sift, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb
 
 #Takes keypoint descriptor and extracts its location
 def location_extraction(kpA, kpB, good_matches, tr_img):
@@ -171,17 +175,17 @@ def create_results(tr_img, tmp_img, kpA, kpB, dst, matchesMask, good_matches):
 
 #Creates a table with the number of matches that each algortihm found
 #for the object.
-def create_table(res_orb_img, good_matches_sift, good_matches_akaze, good_matches_orb):
+def create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, time_akaze, good_matches_orb, time_orb):
     h, w, d = res_orb_img.shape
     table_img = np.zeros((h,w,d), np.uint8)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    nr_matches_sift = 'Number of Sift matches: ' + str(len(good_matches_sift))
+    nr_matches_sift = 'Time of detection SIFT: ' + str(time_sift)
     cv2.putText(table_img, nr_matches_sift, (100, 100), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
-    nr_matches_akaze = 'Number of AKaze matches: ' + str(len(good_matches_akaze))
+    nr_matches_akaze = 'Time of detection AKAZE: ' + str(time_akaze)
     cv2.putText(table_img, nr_matches_akaze, (100, 200), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
-    nr_matches_orb = 'Number of Orb matches: ' + str(len(good_matches_orb))
+    nr_matches_orb = 'Time of detection ORB: ' + str(time_orb)
     cv2.putText(table_img, nr_matches_orb, (100, 300), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
     return table_img
