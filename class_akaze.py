@@ -4,7 +4,7 @@ import cv2
 class AKaze:
     #Constructor for objects of class AKaze
     def __init__(self):
-        self.akaze = cv2.AKAZE_create()
+        self.akaze = cv2.KAZE_create()
 
     #Function that detects keypoints in image and creates a
     #descriptor for each one

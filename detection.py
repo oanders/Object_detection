@@ -12,15 +12,24 @@ from class_orb import ORB
 
 MIN_MATCH_COUNT = 10
 
+def main():
+    choice = int(raw_input("To run a single tests, press (1). To run all test, press (2). : "))
+    if choice == 1:
+        m1()
+    elif choice == 2:
+        m2()
+    else:
+        main()
+
 #Main method, it calls other functions and
 #tests different detection algortithms on images
-def main():
+def m1():
     #Ask wich object we are running tests on
     folder = choose_folder()
     test = choose_test(folder)
 
     #Path for a result directory to be created
-    directory = 'test_results/' + folder + '/' + test
+    directory = 'test_results_kaze_2/' + folder + '/' + test #Quick test, remove 2 later
     #Path for Training image
     path = 'Images/' + folder + '/' + test
     img1 =  path + '/' + 'tr.jpg'
@@ -39,9 +48,48 @@ def main():
         #Table containing the number of matches for each algorithm
         table_img = create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, time_akaze, good_matches_orb, time_orb)
         #Draw plots for the resulting images
-        draw_plots(res_sift_img, res_akaze_img, res_orb_img, table_img, i, directory)
+        draw_plots(res_sift_img, res_akaze_img, res_orb_img, table_img, i, directory, folder, test)
         #go to next image in the folder
         i = i+1
+
+#Runs all tests
+def m2():
+
+    folders = read_folders('Images')
+    nr_folders = len(folders)
+    curr_folder = 0
+    for folder in folders:
+
+        tests = read_folders('Images/' + folder)
+        nr_tests = len(tests)
+        curr_test = 1
+        curr_folder = curr_folder + 1
+        for test in tests:
+            print('----Working on object ' + str(curr_folder) + ' out of ' + str(nr_folders) + ' and test ' + str(curr_test) + ' out of ' + str(nr_tests) + '----')
+            curr_test = curr_test + 1
+            #Path for a result directory to be created
+            directory = 'test_results_kaze_2/' + folder + '/' + test #Quick test, remove 2 later
+            #Path for Training image
+            path = 'Images/' + folder + '/' + test
+            img1 =  path + '/' + 'tr.jpg'
+            print('using training image: ' + img1)
+            tr_img, tr_grey = load__greyScale(img1)
+
+            #Loop through test images
+            nr = read_nr_images(path)
+            i = 1
+            while i < nr:
+                img2 = path + '/' + 't' + str(i) + '.jpg'
+                print('using test image: ' + img2)
+                test_img, test_grey = load__greyScale(img2)
+                #Run algorithms
+                res_sift_img, good_matches_sift, time_sift, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
+                #Table containing the number of matches for each algorithm
+                table_img = create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, time_akaze, good_matches_orb, time_orb)
+                #Draw plots for the resulting images
+                draw_plots(res_sift_img, res_akaze_img, res_orb_img, table_img, i, directory, folder, test)
+                #go to next image in the folder
+                i = i+1
 
 #Method that goes to a desired folder
 def choose_folder():
@@ -182,7 +230,7 @@ def create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, 
     nr_matches_sift = 'Time of detection SIFT: ' + str(time_sift)
     cv2.putText(table_img, nr_matches_sift, (100, 100), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
-    nr_matches_akaze = 'Time of detection AKAZE: ' + str(time_akaze)
+    nr_matches_akaze = 'Time of detection KAZE: ' + str(time_akaze)
     cv2.putText(table_img, nr_matches_akaze, (100, 200), font, 1, (255,255,255), 2, cv2.LINE_AA)
 
     nr_matches_orb = 'Time of detection ORB: ' + str(time_orb)
@@ -190,16 +238,16 @@ def create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, 
 
     return table_img
 
-def draw_plots(sift, akaze, orb, table, index, directory):
+def draw_plots(sift, akaze, orb, table, index, directory, folder, test):
     plot.subplot(221), plot.imshow(sift), plot.title('Sift')
-    plot.subplot(222), plot.imshow(akaze), plot.title('AKaze')
+    plot.subplot(222), plot.imshow(akaze), plot.title('KAZE')
     plot.subplot(223), plot.imshow(orb), plot.title('ORB')
     plot.subplot(224), plot.imshow(table), plot.title('Table')
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
     number = index
-    fig_name = directory + '/res' + str(number) + '.png'
+    fig_name = directory + '/' + folder+'_'+test+'_'+str(index) + '.png'
     plot.savefig(fig_name, format ='png', dpi = 600)
 
 main()

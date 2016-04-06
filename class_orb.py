@@ -18,9 +18,14 @@ class ORB:
         return self.bf_matching(kpA, descA, kpB, descB, time)
 
     def bf_matching(self, kpA, descA, kpB, descB, time):
-        bfm =  cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck = True)
-        matches = bfm.match(descA, descB)
+        bfm =  cv2.BFMatcher(cv2.NORM_HAMMING)
+        matches = bfm.knnMatch(descA, descB, k = 2)
 
-        good_matches = sorted(matches, key = lambda x:x.distance)
+
+        #Ratio test
+        good_matches = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good_matches.append(m)
 
         return kpA, descA, kpB, descB, good_matches, time
