@@ -8,6 +8,7 @@ import copy
 from class_sift import Sift
 from class_akaze import AKaze
 from class_orb import ORB
+from class_detector import Detector
 
 
 MIN_MATCH_COUNT = 10
@@ -44,11 +45,11 @@ def m1():
         print('using test image: ' + img2)
         test_img, test_grey = load__greyScale(img2)
         #Run algorithms
-        res_sift_img, good_matches_sift, time_sift, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
+        res_sift_img, good_matches_sift, time_sift, res_kaze_img, good_matches_kaze, time_kaze, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
         #Table containing the number of matches for each algorithm
         table_img = create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, time_akaze, good_matches_orb, time_orb)
         #Draw plots for the resulting images
-        draw_plots(res_sift_img, res_akaze_img, res_orb_img, table_img, i, directory, folder, test)
+        draw_plots(res_sift_img, res_kaze_img, res_akaze_img, res_orb_img, table_img, i, directory, folder, test)
         #go to next image in the folder
         i = i+1
 
@@ -83,11 +84,11 @@ def m2():
                 print('using test image: ' + img2)
                 test_img, test_grey = load__greyScale(img2)
                 #Run algorithms
-                res_sift_img, good_matches_sift, time_sift, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
+                res_sift_img, good_matches_sift, time_sift, res_kaze_img, good_matches_kaze, time_kaze, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb = run_test_algorithms(tr_grey, test_grey, tr_img, test_img)
                 #Table containing the number of matches for each algorithm
                 table_img = create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, time_akaze, good_matches_orb, time_orb)
                 #Draw plots for the resulting images
-                draw_plots(res_sift_img, res_akaze_img, res_orb_img, table_img, i, directory, folder, test)
+                draw_plots(res_sift_img, res_kaze_img, res_akaze_img, res_orb_img, table_img, i, directory, folder, test)
                 #go to next image in the folder
                 i = i+1
 
@@ -146,33 +147,51 @@ def load__greyScale(image):
 #Runs all 3 algorithms on the same object and test.
 #Returns 1 image for the result of each algorithm tested.
 def run_test_algorithms(tr_grey, test_grey, tr_img, test_img):
-    #Call Sift class
-    sift = Sift()
+    #Create detectors
+    sift_algo = cv2.xfeatures2d.SIFT_create()
+    kaze_algo = cv2.KAZE_create()
+    akaze_algo = cv2.AKAZE_create()
+    orb_algo = cv2.ORB_create()
+
+    sift = Detector(sift_algo, 'N')
+    kaze = Detector(kaze_algo, 'N')
+    akaze = Detector(akaze_algo, 'N')
+    orb = Detector(orb_algo, 'NORM_HAMMING')
+
+    #Call sift
     kpAS, descAS, kpBS, descBS, good_matches_sift, time_sift = sift.match(tr_grey, test_grey)
+
+    #Call Kaze
+    kpAK, descAK, kpBK, descBK, good_matches_kaze, time_kaze = kaze.match(tr_grey, test_grey)
+
     #Call Akaze class
-    akaze = AKaze()
-    kpAK, descAK, kpBK, descBK, good_matches_akaze, time_akaze = akaze.match(tr_grey, test_grey)
+    kpAAK, descAAK, kpBAK, descBAK, good_matches_akaze, time_akaze = akaze.match(tr_grey, test_grey)
+
     #Call ORB class
-    orb = ORB()
     kpAorb, descAorb, kpBorb, descBorb, good_matches_orb, time_orb = orb.match(tr_grey, test_grey)
 
     #Mask for all three algorithms
     maskS, dtsS = location_extraction(kpAS, kpBS, good_matches_sift,tr_img)
-    maskK, dtsK = location_extraction(kpAK, kpBK, good_matches_akaze,tr_img)
+    maskK, dtsK = location_extraction(kpAK, kpBK, good_matches_kaze,tr_img)
+    maskAK, dtsAK = location_extraction(kpAAK, kpBAK, good_matches_akaze,tr_img)
     maskorb, dtsorb = location_extraction(kpAorb, kpBorb, good_matches_orb,tr_img)
 
     #Copy of image so that lines from first method do not last to second.
     tmp_img1 = copy.copy(test_img)
     tmp_img2 = copy.copy(test_img)
+    tmp_img3 = copy.copy(test_img)
     res_sift_img = create_results(tr_img, test_img, kpAS, kpBS, dtsS,
                                         maskS, good_matches_sift)
-    res_akaze_img = create_results(tr_img, tmp_img1, kpAK, kpBK, dtsK,
-                                        maskK, good_matches_akaze)
+    res_kaze_img = create_results(tr_img, tmp_img1, kpAK, kpBK, dtsK,
+                                        maskK, good_matches_kaze)
 
     res_orb_img = create_results(tr_img, tmp_img2, kpAorb, kpBorb, dtsorb,
                                         maskorb, good_matches_orb)
 
-    return res_sift_img, good_matches_sift, time_sift, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb
+    res_akaze_img = create_results(tr_img, tmp_img3, kpAAK, kpBAK, dtsAK,
+                                        maskAK, good_matches_akaze)
+
+    return res_sift_img, good_matches_sift, time_sift, res_kaze_img, good_matches_kaze, time_kaze, res_akaze_img, good_matches_akaze, time_akaze, res_orb_img, good_matches_orb, time_orb
 
 #Takes keypoint descriptor and extracts its location
 def location_extraction(kpA, kpB, good_matches, tr_img):
@@ -238,11 +257,11 @@ def create_table(res_orb_img, good_matches_sift, time_sift, good_matches_akaze, 
 
     return table_img
 
-def draw_plots(sift, akaze, orb, table, index, directory, folder, test):
+def draw_plots(sift, kaze, akaze, orb, table, index, directory, folder, test):
     plot.subplot(221), plot.imshow(sift), plot.title('Sift')
-    plot.subplot(222), plot.imshow(akaze), plot.title('KAZE')
-    plot.subplot(223), plot.imshow(orb), plot.title('ORB')
-    plot.subplot(224), plot.imshow(table), plot.title('Table')
+    plot.subplot(222), plot.imshow(kaze), plot.title('KAZE')
+    plot.subplot(223), plot.imshow(akaze), plot.title('AKAZE')
+    plot.subplot(224), plot.imshow(orb), plot.title('ORB')
 
     if not os.path.isdir(directory):
         os.makedirs(directory)

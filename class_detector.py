@@ -1,10 +1,11 @@
 import cv2
 
 #A class that calls for openCV function Sift
-class Sift:
+class Detector:
     #Contructor for class, objects of class SIFT
-    def __init__(self):
-        self.sift = cv2.xfeatures2d.SIFT_create()
+    def __init__(self, detector, argu):
+        self.detector = detector
+        self.argu = argu
 
     #Function that detects keypoints in image and creates a
     #descriptor for each one
@@ -13,8 +14,8 @@ class Sift:
 
         #start tracking time for detection
         e1 = cv2.getTickCount()
-        kpA, descA = self.sift.detectAndCompute(grey1, word)
-        kpB, descB = self.sift.detectAndCompute(grey2, word)
+        kpA, descA = self.detector.detectAndCompute(grey1, word)
+        kpB, descB = self.detector.detectAndCompute(grey2, word)
 
         e2 = cv2.getTickCount()
         time = (e2 - e1)/ cv2.getTickFrequency()
@@ -22,7 +23,10 @@ class Sift:
 
     #Uses brute force matching
     def bf_matching(self, kpA, descA, kpB, descB, time):
-        bfm = cv2.BFMatcher()
+        if self.argu == 'NORM_HAMMING':
+            bfm =  cv2.BFMatcher(cv2.NORM_HAMMING)
+        else:
+            bfm = cv2.BFMatcher()
         matches = bfm.knnMatch(descA, descB, k = 2)
 
         #Ratio test
